@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CategoryToCreate } from './types.js';
 
 export const CategoryCreateSchema = z.object({
   name: z
@@ -9,7 +10,7 @@ export const CategoryCreateSchema = z.object({
     .max(255, {
       message: 'Name is required and should be between 3 and 255 characters',
     }),
-});
+}) satisfies z.Schema<CategoryToCreate>;
 
 export const AnswerCreateSchema = z.object({
   text: z

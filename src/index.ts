@@ -15,7 +15,12 @@ app.use('/*', cors({ origin: '*' }));
 app.notFound((c) => c.json({ message: 'not found' }, 404));
 
 app.onError((err, c) => {
-  console.error(err);
+  console.error(err.name, err.message);
+
+  if (err.message === 'Malformed JSON in request body') {
+    return c.json({ message: 'invalid json' }, 400);
+  }
+
   return c.json({ message: 'internal server error' }, 500);
 });
 

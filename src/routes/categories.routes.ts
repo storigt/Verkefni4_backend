@@ -2,55 +2,75 @@ import { zValidator } from '@hono/zod-validator';
 import { PrismaClient } from '@prisma/client';
 import { Hono } from 'hono';
 
-import { slugify } from '../lib/slugify.js';
+import { CategoriesDbClient } from '../lib/categories.db.js';
+import { parseLimitOffset } from '../lib/limitOffset.js';
+import { validateSlug } from '../lib/slugs.js';
 import { CategoryCreateSchema } from '../schema.zod.js';
 
 export const categoriesApi = new Hono();
 
-const prisma = new PrismaClient();
+const categoriesClient = new CategoriesDbClient(new PrismaClient());
 
 categoriesApi.get('/', async (c) => {
-  const categories = await prisma.category.findMany();
-  return c.json(categories);
+  const limitOffset = parseLimitOffset(
+    c.req.query('limit'),
+    c.req.query('offset'),
+  );
+
+  if (!limitOffset) {
+    return c.json({ message: 'invalid limit or offset' }, 400);
+  }
+
+  const categories = await categoriesClient.getCategories(limitOffset);
+
+  if (!categories.ok) {
+    return c.json({ message: 'error fetching categories' }, 500);
+  }
+
+  return c.json(categories.value);
 });
 
 categoriesApi.get('/:slug', async (c) => {
   const slug = c.req.param('slug');
-  const category = await prisma.category.findFirst({
-    where: {
-      slug,
-    },
-  });
 
-  if (!category) {
+  if (!validateSlug(slug)) {
+    return c.json({ message: 'invalid slug' }, 400);
+  }
+
+  const category = await categoriesClient.getCategoryBySlug(slug);
+
+  if (!category.ok) {
+    return c.json({ message: 'error fetching category' }, 500);
+  }
+
+  if (!category.value) {
     return c.json({ message: 'category not found' }, 404);
   }
 
-  return c.json(category);
+  return c.json(category.value);
 });
 
 categoriesApi.post('/', zValidator('json', CategoryCreateSchema), async (c) => {
   const category = c.req.valid('json');
 
-  // make sure we are not breaking the unique constraint
-  const categoryExists = await prisma.category.findFirst({
-    where: {
-      name: category.name,
-    },
+  const createResult = await categoriesClient.createCategory({
+    name: category.name,
   });
 
-  if (categoryExists) {
-    return c.json(categoryExists);
+  if (!createResult.ok) {
+    return c.json({ message: 'error creating category' }, 500);
   }
 
-  const savedCategory = await prisma.category.create({
-    data: {
-      name: category.name,
-      slug: slugify(category.name),
-    },
-  });
+  if (!createResult.value.created) {
+    switch (createResult.value.reason) {
+      case 'invalid-slug':
+        return c.json({ message: 'invalid slug' }, 400);
+      case 'exists':
+        return c.json(createResult.value.category, 200);
+    }
+  }
 
-  return c.json(savedCategory, 201);
+  return c.json(createResult.value.category, 201);
 });
 
 categoriesApi.patch(
@@ -60,48 +80,38 @@ categoriesApi.patch(
     const slug = c.req.param('slug');
     const category = c.req.valid('json');
 
-    const categoryExists = await prisma.category.findFirst({
-      where: {
-        slug,
-      },
-    });
-
-    if (!categoryExists) {
-      return c.json({ message: 'category not found' }, 404);
+    if (!validateSlug(slug)) {
+      return c.json({ message: 'invalid slug' }, 400);
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: {
-        slug,
-      },
-      data: {
-        name: category.name,
-        slug: slugify(category.name),
-      },
+    const updateResult = await categoriesClient.updateCategory(slug, {
+      name: category.name,
     });
 
-    return c.json(updatedCategory);
+    if (!updateResult.ok) {
+      return c.json({ message: 'error creating category' }, 500);
+    }
+
+    return c.json(updateResult.value, 200);
   },
 );
 
 categoriesApi.delete('/:slug', async (c) => {
   const slug = c.req.param('slug');
 
-  const categoryExists = await prisma.category.findFirst({
-    where: {
-      slug,
-    },
-  });
+  if (!validateSlug(slug)) {
+    return c.json({ message: 'invalid slug' }, 400);
+  }
 
-  if (!categoryExists) {
+  const deleteResult = await categoriesClient.deleteCategory(slug);
+
+  if (!deleteResult.ok) {
+    return c.json({ message: 'error deleting category' }, 500);
+  }
+
+  if (!deleteResult.value) {
     return c.json({ message: 'category not found' }, 404);
   }
 
-  await prisma.category.delete({
-    where: {
-      slug,
-    },
-  });
-
-  return c.json({ message: 'category deleted' });
+  return c.body(null, 204);
 });
