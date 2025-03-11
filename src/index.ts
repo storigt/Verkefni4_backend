@@ -6,7 +6,8 @@ import { prettyJSON } from 'hono/pretty-json';
 
 import { api } from './routes/index.routes.js';
 
-const PORT = 3000;
+const PORT = process.env.PORT ?? '3000';
+const port = Number.parseInt(PORT, 10);
 
 const app = new Hono();
 app.use(logger());
@@ -29,7 +30,7 @@ app.route('/', api);
 serve(
   {
     fetch: app.fetch,
-    port: PORT,
+    port,
   },
   (info) => {
     console.log(`Server is running on http://${info.address}:${info.port}`);

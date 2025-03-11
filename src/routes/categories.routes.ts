@@ -4,12 +4,14 @@ import { Hono } from 'hono';
 
 import { CategoriesDbClient } from '../lib/categories.db.js';
 import { parseLimitOffset } from '../lib/limitOffset.js';
+import { ConsoleLogger } from '../lib/logger.js';
 import { validateSlug } from '../lib/slugs.js';
 import { CategoryCreateSchema } from '../schema.zod.js';
 
 export const categoriesApi = new Hono();
 
-const categoriesClient = new CategoriesDbClient(new PrismaClient());
+const logger = new ConsoleLogger();
+const categoriesClient = new CategoriesDbClient(new PrismaClient(), logger);
 
 categoriesApi.get('/', async (c) => {
   const limitOffset = parseLimitOffset(

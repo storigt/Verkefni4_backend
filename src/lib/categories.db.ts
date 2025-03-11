@@ -10,13 +10,16 @@ import type {
   Result,
   Slug,
 } from '../types.js';
+import type { ILogger } from './logger.js';
 import { slugify } from './slugs.js';
 
 export class CategoriesDbClient implements ICategory {
   private prisma: PrismaClient;
+  private logger: ILogger;
 
-  constructor(prisma: PrismaClient) {
+  constructor(prisma: PrismaClient, logger: ILogger) {
     this.prisma = prisma;
+    this.logger = logger;
   }
 
   async getCategories(
@@ -29,6 +32,7 @@ export class CategoriesDbClient implements ICategory {
         skip: limitOffset.offset,
       });
     } catch (error) {
+      this.logger.error('error fetching categories', limitOffset, error);
       return { ok: false, error: error as Error };
     }
 
@@ -36,6 +40,7 @@ export class CategoriesDbClient implements ICategory {
     try {
       totalCategories = await this.prisma.category.count();
     } catch (error) {
+      this.logger.error('error counting categories', error);
       return { ok: false, error: error as Error };
     }
 
@@ -58,6 +63,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error fetching category', slug, error);
       return { ok: false, error: error as Error };
     }
 
@@ -76,6 +82,11 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error(
+        'error checking for existing category',
+        category,
+        error,
+      );
       return { ok: false, error: error as Error };
     }
 
@@ -108,6 +119,7 @@ export class CategoriesDbClient implements ICategory {
         created: false,
         reason: 'invalid-slug',
       };
+      this.logger.error('invalid slug', category);
       return { ok: true, value: result };
     }
 
@@ -122,6 +134,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error creating category', category, error);
       return { ok: false, error: error as Error };
     }
 
@@ -147,6 +160,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error checking for existing category', slug, error);
       return { ok: false, error: error as Error };
     }
 
@@ -173,6 +187,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error updating category', slug, category);
       return { ok: false, error: error as Error };
     }
 
@@ -189,6 +204,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error checking for existing category', slug, error);
       return { ok: false, error: error as Error };
     }
 
@@ -203,6 +219,7 @@ export class CategoriesDbClient implements ICategory {
         },
       });
     } catch (error) {
+      this.logger.error('error deleting category', slug, error);
       return { ok: false, error: error as Error };
     }
 
