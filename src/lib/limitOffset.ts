@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { LIMIT_DEFAULT, LIMIT_MAX, OFFSET_DEFAULT } from '../constants.js';
+import {
+  LIMIT_DEFAULT,
+  LIMIT_MAX,
+  OFFSET_DEFAULT,
+  OFFSET_MAX,
+} from '../constants.js';
 import type { LimitOffset } from '../types.js';
 
 // Use zod coerction to transform whatever value we get into a number, then use
@@ -7,7 +12,12 @@ import type { LimitOffset } from '../types.js';
 // @see https://zod.dev/?id=coercion-for-primitives
 
 export const LimitSchema = z.coerce.number().int().positive().max(LIMIT_MAX);
-export const OffsetSchema = z.coerce.number().int().min(0);
+export const OffsetSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .min(0)
+  .max(OFFSET_MAX);
 
 /**
  *
